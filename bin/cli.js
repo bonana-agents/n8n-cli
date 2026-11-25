@@ -6,8 +6,9 @@ import path from 'path';
 import { parseCustomFlags, loadEnvFile, buildEnv, deriveEnvName } from '../lib/env.js';
 import { runCli } from '../lib/run.js';
 import { readManifest, writeManifest, getSection } from '../lib/manifest.js';
-import { readMapping } from '../lib/mapping.js';
+import { readMapping, applyCredentialMapping } from '../lib/mapping.js';
 import { diffWorkflows, formatDiff } from '../lib/diff.js';
+import { applyIdMapping, buildIdMaps, orderByWorkflowDependencies } from '../lib/remap.js';
 import {
   DEFAULT_WORKFLOWS_DIR,
   DEFAULT_MOCKDATA_DIR,
@@ -72,6 +73,14 @@ const credentialsFile = dir ?? DEFAULT_CREDENTIALS_FILE;
 const tagsFile        = dir ?? DEFAULT_TAGS_FILE;
 
 // --- Helpers ---
+
+// Translates credential, sub-workflow and data table IDs in a local workflow to
+// the IDs of the current environment, the same way workflow push does, so diff
+// compares what a push would send.
+function toTargetIds(local, manifest) {
+  const withCredentials = applyCredentialMapping(local, readMapping(currentEnvName), { warn: false });
+  return applyIdMapping(withCredentials, buildIdMaps(manifest, currentEnvName), { warn: false });
+}
 
 function resolveWorkflowId(fileOrId, manifest, envName) {
   if (fileOrId.endsWith('.json') || fileOrId.includes('/')) {
@@ -176,7 +185,9 @@ const WORKFLOW_HELP = {
     '  On first push to an environment, creates the workflow and records its',
     '  remote ID in .n8n_cli/manifest.json. On subsequent pushes, updates the',
     '  existing workflow. Credential IDs are remapped via .n8n_cli/mapping.json',
-    '  before pushing. Fields the API rejects (active, tags, description and',
+    '  before pushing. Sub-workflow, error workflow and data table IDs are',
+    '  remapped via the manifest; with --all, sub-workflows are pushed first.',
+    '  Fields the API rejects (active, tags, description and',
     '  some settings) are left out of the request; tags are linked after the',
     '  push and active is handled by --activate.',
     '',
@@ -202,15 +213,17 @@ const WORKFLOW_HELP = {
     '',
     'USAGE',
     '  $ n8n-cli workflow diff <file> [--env <name>]',
-    '  $ n8n-cli workflow diff --all [--env <name>]',
+    '  $ n8n-cli workflow diff --all [--dir <path>] [--env <name>]',
     '',
     'FLAGS',
     '  --all              Diff all local workflows against remote',
+    `  --dir <path>       Source directory for --all  (default: ./${DEFAULT_WORKFLOWS_DIR})`,
     '  --env <name>       Environment name',
     '  --env-file <path>  Load a specific .env file',
     '',
     'DESCRIPTION',
-    '  Fetches the remote workflow and compares it to the local file.',
+    '  Fetches the remote workflow and compares it to the local file, after',
+    '  translating credential, sub-workflow and data table IDs the way push does.',
     '  Shows added/removed/changed nodes, connection changes and metadata.',
     '  Exits 1 if differences are found, 0 if up to date.',
   ],
@@ -653,7 +666,7 @@ if (args[0] === 'workflow' && args[1] === 'push' && all) {
   console.log(`Pushing ${files.length} workflow(s) to env: ${currentEnvName}\n`);
   let pushed = 0, deleted = 0, failed = 0;
 
-  for (const filename of files) {
+  for (const filename of orderByWorkflowDependencies(workflowsDir, files, manifest)) {
     const filepath = path.join(workflowsDir, filename);
     if (pushWorkflow(filepath, currentEnvName, manifest, env, mapping, { activate })) pushed++;
     else failed++;
@@ -753,7 +766,7 @@ if (args[0] === 'workflow' && args[1] === 'diff' && all) {
     try { remote = JSON.parse(fetched.stdout.toString()); }
     catch (e) { console.error(`${filename}: could not parse remote response`); continue; }
 
-    const diff = diffWorkflows(local, remote);
+    const diff = diffWorkflows(toTargetIds(local, manifest), remote);
     process.stdout.write(formatDiff(diff, filename, currentEnvName));
     if (Object.keys(diff).length > 0) hasChanges = true;
   }
@@ -786,7 +799,7 @@ if (args[0] === 'workflow' && args[1] === 'diff') {
   try { remote = JSON.parse(fetched.stdout.toString()); }
   catch (e) { console.error(`Error parsing remote workflow: ${e.message}`); process.exit(1); }
 
-  const diff = diffWorkflows(local, remote);
+  const diff = diffWorkflows(toTargetIds(local, manifest), remote);
   process.stdout.write(formatDiff(diff, filename, currentEnvName));
   process.exit(Object.keys(diff).length > 0 ? 1 : 0);
 }

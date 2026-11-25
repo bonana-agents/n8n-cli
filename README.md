@@ -156,7 +156,7 @@ Pass `--activate` to activate the workflow after pushing. Only workflows that ha
 
 ### `workflow push --all`
 
-Push all `.json` files from `n8n/workflows/` to the instance.
+Push all `.json` files from `n8n/workflows/` to the instance. Sub-workflows and error workflows are pushed before the workflows that reference them, so their IDs on the target are known in time.
 
 ```bash
 n8n-cli workflow push --all
@@ -180,11 +180,13 @@ n8n-cli workflow validate n8n/workflows/my_workflow.json
 
 ### `workflow diff <file>`
 
-Compare a local workflow file against the version currently on the instance. Shows added, removed and changed nodes, connection changes, and metadata differences (name, settings, tags). Volatile fields like `updatedAt` and node positions are ignored. So are fields that `workflow push` cannot set (`description` and the settings listed under `workflow push`), because a push could never resolve a difference in them.
+Compare a local workflow file against the version currently on the instance. The local file is first translated to the target's IDs the same way `workflow push` does it (credentials, sub-workflows, data tables), so a freshly pushed workflow diffs clean. Shows added, removed and changed nodes, connection changes, and metadata differences (name, settings, tags). Volatile fields like `updatedAt` and node positions are ignored. So are fields that `workflow push` cannot set (`description` and the settings listed under `workflow push`), because a push could never resolve a difference in them.
 
 ```bash
 n8n-cli workflow diff n8n/workflows/my_workflow.json
 n8n-cli workflow diff n8n/workflows/my_workflow.json --env staging
+n8n-cli workflow diff --all
+n8n-cli workflow diff --all --dir n8n/workflows/acme   # only the workflows in this directory
 ```
 
 Exits `1` if differences are found, `0` if up to date. Useful for spotting workflows that were edited directly on the instance without the change being committed to git.
@@ -550,6 +552,10 @@ Create `.n8n_cli/mapping.json` and commit it (it contains only IDs, no secrets):
 The mapping is built using the credential commands above. Use `credential map` if the credentials already exist on the target, or `credential push` to create stubs and populate the mapping in one step.
 
 Credential remapping runs on every `workflow push`. Missing mappings print a warning but the push continues.
+
+### Sub-workflow and data table IDs
+
+Execute Workflow and Workflow Tool nodes, the error workflow setting and Data Table nodes reference other workflows and tables by ID. These are remapped on every `workflow push` without extra setup, using the manifest: the ID a file has in any other environment is replaced by the ID the same file has in the target environment. References by name and expressions are left alone. A referenced workflow or table must therefore be pushed to the environment first; `workflow push --all` takes care of the order for workflows. A reference without a target ID prints a warning but the push continues.
 
 Tags are matched by name on the target; missing tags are created.
 

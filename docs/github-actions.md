@@ -188,6 +188,10 @@ n8n-cli credential list --json --env-file .env.instance-a
 
 The mapping is applied automatically on every `workflow push`. After remapping, `n8n-cli` checks that all credential IDs in the workflow exist on the target. Missing IDs print a warning but the push continues. Commit `.n8n_cli/mapping.json` to git so all environments and CI/CD pipelines share the same mapping.
 
+### Sub-workflow and data table IDs
+
+Sub-workflow references (Execute Workflow and Workflow Tool nodes), the error workflow setting and Data Table nodes also contain instance-specific IDs. These need no extra setup: on every `workflow push`, `n8n-cli` replaces them with the target environment's IDs from `.n8n_cli/manifest.json`. Push data tables before workflows; `workflow push --all` pushes sub-workflows before the workflows that call them.
+
 ---
 
 ## Variables

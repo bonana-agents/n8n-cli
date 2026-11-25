@@ -22,6 +22,8 @@ Shell variables always take precedence over .env values.
 
 `.n8n_cli/mapping.json` maps source credential IDs to target IDs per environment. Commit it to git (contains only IDs, no secrets).
 
+Sub-workflow, error workflow and data table IDs need no mapping file: `workflow push` translates them via the manifest. Push referenced workflows and tables to an environment first; `workflow push --all` orders sub-workflows first. `workflow diff` applies the same translation.
+
 ### Workflow Commands
 
 ```bash
@@ -43,6 +45,7 @@ n8n-cli workflow push --all --activate --prune    # --prune deletes remote-only 
 # Diff
 n8n-cli workflow diff <file>
 n8n-cli workflow diff --all
+n8n-cli workflow diff --all --dir n8n/workflows/acme
 
 # Validate (useful as a CI gate)
 n8n-cli workflow validate <file>
