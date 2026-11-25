@@ -150,6 +150,8 @@ n8n-cli workflow push n8n/workflows/my_workflow.json --env staging
 n8n-cli workflow push n8n/workflows/my_workflow.json --activate
 ```
 
+Fields that `workflow pull` writes but the n8n API does not accept on create or update (`active`, `tags`, `description`, and `settings.binaryMode`, `settings.timeSavedMode`, `settings.availableInMCP`) are left out of the request. Tags are linked by name after the push, and `active` is handled by `--activate`. A pulled file can therefore be pushed back unchanged.
+
 Pass `--activate` to activate the workflow after pushing. Only workflows that have `"active": true` in the local JSON are activated. Sub-workflows and manual-trigger workflows that were inactive when pulled are left inactive.
 
 ### `workflow push --all`
@@ -178,7 +180,7 @@ n8n-cli workflow validate n8n/workflows/my_workflow.json
 
 ### `workflow diff <file>`
 
-Compare a local workflow file against the version currently on the instance. Shows added, removed and changed nodes, connection changes, and metadata differences (name, settings, tags). Volatile fields like `updatedAt` and node positions are ignored.
+Compare a local workflow file against the version currently on the instance. Shows added, removed and changed nodes, connection changes, and metadata differences (name, settings, tags). Volatile fields like `updatedAt` and node positions are ignored. So are fields that `workflow push` cannot set (`description` and the settings listed under `workflow push`), because a push could never resolve a difference in them.
 
 ```bash
 n8n-cli workflow diff n8n/workflows/my_workflow.json
