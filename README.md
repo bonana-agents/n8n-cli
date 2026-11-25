@@ -364,6 +364,8 @@ n8n-cli data-table pull --all --existing      # only update already-local tables
 
 Push a data table file. Creates the table if it doesn't exist, then upserts all rows.
 
+Without a manifest entry for the environment, an existing remote table with the same name is reused, but only if it is the only table with that name and has the same columns. Otherwise the push stops without writing rows: on a shared instance, a same-named table can belong to another project. The project of a reused table is printed. Add the right ID to the manifest to push into a specific table.
+
 ```bash
 n8n-cli data-table push n8n/data-tables/my_data_table.json
 n8n-cli data-table push n8n/data-tables/my_data_table.json --env instance-a
