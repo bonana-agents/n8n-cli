@@ -420,6 +420,8 @@ n8n/credentials/
   slack_bot.json
 ```
 
+Every credential file, in either layout, may hold a single object or an array, so one per-credential file can also be pushed on its own (`credential push n8n/credentials/slack_bot.json`).
+
 ### `credential pull`
 
 Fetch all credentials from the instance and save metadata to `n8n/credentials.json`.
@@ -473,6 +475,8 @@ n8n/tags/
   production.json
   sap_s_4hana.json
 ```
+
+Every tag file, in either layout, may hold a single object or an array, so one per-tag file can also be pushed on its own (`tag push n8n/tags/production.json`).
 
 ### `tag pull`
 
